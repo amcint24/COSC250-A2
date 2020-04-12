@@ -77,6 +77,10 @@ case class Vec2(x:Double, y:Double) {
     } else this
   }
 
+  def distance(testVec:Vec2):Double = {
+    (testVec - this).magnitude
+  }
+
 }
 
 /**

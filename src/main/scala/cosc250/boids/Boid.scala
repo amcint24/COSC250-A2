@@ -9,6 +9,15 @@ package cosc250.boids
 case class Boid(
   position:Vec2, velocity:Vec2
 ) {
+  /** Converts a vector which represents the desired direction and converts it an optimal steering vector
+    * normalised times maxSpeed ensures the steer is not very small
+    * subtract velocity to convert this into a change that will be applied to velocity, not new absolute value
+    * limit to max steering force for smooth movement
+    * credit to processing.ord flock example for concept
+    * */
+  def steerFactor(inputVec: Vec2):Vec2 = {
+    ((inputVec.normalised * Boid.maxSpeed) - velocity).limit(Boid.maxForce)
+  }
 
   /**
     * Calculates an acceleration vector that will cause it to maintain a minimum
@@ -16,60 +25,93 @@ case class Boid(
     * This steer is limited to maxForce
     */
   def separate(others:Seq[Boid]):Vec2 = {
-    ???
+
+    if (others.nonEmpty) {
+      // For each other boid calculate the vector pointing away from that boid. Divide this vector by the distance
+      // to that boid to give more weight to close boids. Sum all the results together into a vector.
+      val pointingAway = others.foldLeft(Vec2(0.0, 0.0)) { (a, i) =>
+        a + (position - i.position).normalised / position.distance(i.position)
+      }
+      // Take the average of the vectors pointing away and create a steering vector in that direction.
+      val weightedAverage = pointingAway / others.length
+      steerFactor(weightedAverage)
+    } else {
+      Vec2(0.0,0.0)
+    }
   }
 
   /**
     * Calculates an acceleration vector that will cause it align its direction and
-    * velocity with other birds within Boid.neighbourDist
-    * This alignment force is limited to maxForce
+    * velocity with other birds.
     */
   def align(others:Seq[Boid]):Vec2 = {
-    ???
+    if (others.nonEmpty){
+      // Create a vector which is the sum of all other boids' velocities
+      val alignedDirection = others.foldLeft(Vec2(0.0, 0.0)) { (a, i) =>
+        a + i.velocity
+      }
+      // Take the average velocity and create steering vector toward it
+      val weightedAverage = alignedDirection / others.length
+      steerFactor(weightedAverage)
+    } else {
+      Vec2(0.0, 0.0)
+    }
   }
 
   /**
     * Calculates an acceleration that will steer this boid towards the target.
-    * The steer is limited to maxForce
     */
   def seek(targetPos:Vec2):Vec2 = {
-    ???
+    // Direction to target is target position minus start position
+    val towardsTarget = targetPos - position
+    steerFactor(towardsTarget)
   }
-
 
   /**
     * Calculates an acceleration that will keep it near its neighbours and maintain
     * the flock cohesion
     */
   def cohesion(others:Seq[Boid]):Vec2 = {
-    ???
+
+    if (others.nonEmpty){
+      // Create a vec2 which is the sum of the positions of all neighbours
+      val positionsSum = others.foldLeft(Vec2(0.0,0.0)){ (a,i) =>
+        a + i.position
+      }
+      // Calculate the mean position and call seek on that position
+      val neighsCentre = positionsSum / others.length
+      seek(neighsCentre)
+    } else {
+      Vec2(0.0,0.0)
+    }
   }
 
-
   /**
-    * Calculates a flocking acceleration that is a composite of its separation,
-    * align, and cohesion acceleration vectors.
+    * First makes a list of all 'other boids' (not this) then filters Seqs for desired separation
+    * (DS) and neighbour distance (ND) Then calls the flocking behaviour functions on the appropriate Seqs, and sums
+    * the return into a vector. The separate function has additional weighting to achieve the desired
+    * effect - credit to processing.org
     */
-  def flock(others:Seq[Boid]):Vec2 = {
-    ???
+  def flock():Vec2 = {
+    val otherBoids = Simulation.queue(Simulation.queue.length-1).filter(boid => position.distance(boid.position) > 0)
+    val withinDS = otherBoids.filter(boid => position.distance(boid.position) < Boid.desiredSeparation)
+    val withinND = otherBoids.filter(boid => position.distance(boid.position) < Boid.neighBourDist)
+
+    (separate(withinDS)*1.5) + align(withinND) + cohesion(withinND)
+
   }
 
   /**
-    * Produces a new Boid by adding the boid's velocity to its position, and adding
-    * the acceleration vector to the boid's velocity. Note that there is no division
-    * by timestep -- it's just p = p + v, and v = v + a
-    *
-    * Also note that we don't apply the limiting on maxForce in this function -- this is
-    * so that the startle effect can dramatically perturb the birds in a way they would
-    * not normally be perturbed in flight. Instead, limit maxForce in the flock function
-    * (or the functions it calls)
-    *
-    * We do, however, limit a boid's velocity to maxSpeed in this function. But we do it
-    * *before* we add the influence of the wind to the boid's velocity -- it's possible
-    * to fly faster downwind than upwind.
+    * Update the position of this boid. Sets the new velocity using the flock function, limiting to max speed.
+    * Adds wind to new velocity if present. Adds the updated velocity to the previous position, using the wrap functions.
+    * Returns a new boid with updated details.
     */
-  def update(acceleration:Vec2, wind:Vec2):Boid = {
-    ???
+  def update(wind:Vec2):Boid = {
+    val newVelocity = (velocity + flock()).limit(Boid.maxSpeed) + wind
+    val newX = wrapX(position.x + newVelocity.x)
+    val newY = wrapY(position.y + newVelocity.y)
+    val newPosition = Vec2(newX, newY)
+    Boid(newPosition, newVelocity)
   }
 
   def wrapX(x:Double):Double = {

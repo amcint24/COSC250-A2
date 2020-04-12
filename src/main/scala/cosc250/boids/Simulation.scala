@@ -22,8 +22,9 @@ object Simulation {
   /** When the boids are startled, the strength of the vector that is applied to each of them */
   val startleStrength:Double = Boid.maxSpeed
 
-  val startleFunction:Boid => Vec2 = {
-    ???
+  /** Takes a boid and adds the startleStrength, returning new boid */
+  val startleFunction:Boid => Boid = {
+    boid:Boid => {Boid(boid.position, boid.velocity + Vec2.randomDir(startleStrength))}
   }
 
   /** A mutable queue containing the last `frameMemory frames` */
@@ -37,56 +38,68 @@ object Simulation {
     * Note that a northerly wind blows **from** the north, so we multiply the vector by -1.
     */
   def setWindDirection(theta:Double):Unit = {
-    ???
+    val newWind = Vec2.fromRTheta(windStrength,theta) * -1
+    wind = Option(newWind)
   }
 
   /** A container that can hold a boid to add on the next frame */
   var insertBoid:Option[Boid] = None
 
   /**
-    * A function that will run for the next frame only over each boid in the system,
-    * producing an acceleration vector to add to a Boid
+    * If the startle boids button is pressed this variable will be populated with the startleFunction
+    * This allows the function be 'stored' waiting to be called in the next frame update and cleared when finished
     */
-  var oneTimeFunction:Option[Boid => Vec2] = None
+  var oneTimeFunction:Option[Boid => Boid] = None
 
   /**
     * Resets the events that should occur one time only
     */
   def resetOneTimeEvents():Unit = {
-    ???
+    oneTimeFunction = None
+    insertBoid = None
   }
 
-  /** The current frame */
-  def current = ???
-
   /** Generates boids in the centre of the simulation, moving at v=1 in a random direction */
-  def explosionOfBoids(i:Int):Seq[Boid] = ???
+  def explosionOfBoids(i:Int):Seq[Boid] = {
+    (0 until numBoids).map(i=>Boid(Vec2(Boid.maxX/2,Boid.maxY/2),Vec2.randomDir(1)))
+  }
 
-  /** Pushes a state into the queue */
+  /** Manages the memory buffer. Adds newest frame to the tail of the buffer and drops oldest off the head */
   def pushState(boids:Seq[Boid]):Seq[Boid] = {
-    ???
+    queue.enqueue(boids)
 
     // Drops a frame from the queue if we've reached the maximum number of frames to remember
     if (queue.lengthCompare(frameMemory) > 0) queue.dequeue()
+
     boids
   }
 
   /** Called by a click to the canvas, to say that in the next frame, a boid should be inserted */
-  def pushBoid(b:Boid):Unit = {
-    insertBoid = Some(b)
+  def pushBoid(boid:Boid):Unit = {
+    insertBoid = Some(boid)
   }
 
   /** Called by the Action Replay button to jump back in the memory buffer */
   def resetQueue():Seq[Boid] = {
-    ???
+    queue(queue.length-1) = queue(0)
+    queue(queue.length-1)
   }
 
   /** Generate the next frame in the simulation */
   def update():Seq[Boid] = {
-    ???
+    val windVec = wind.getOrElse(Vec2(0,0))
+    // Function to update a single boid with wind
+    val boidUpdate:Boid => Boid = boid=>boid.update(windVec)
+
+    // Does a conventional update of all boids, then adds an additional one and startles them all if triggered
+    val lastFrame = queue(queue.length-1)
+    val frameUpdate = lastFrame.map(boid => boidUpdate(boid))
+    val addBoid = if (insertBoid.isEmpty) {frameUpdate} else {frameUpdate :+ insertBoid.get}
+    val startledBoids = addBoid.map(boid => if (oneTimeFunction.nonEmpty) {oneTimeFunction.get(boid)} else boid)
+
+    resetOneTimeEvents()
+
+    pushState(startledBoids)
   }
-
-
-
 
 }
