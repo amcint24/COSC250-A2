@@ -84,22 +84,24 @@ object Simulation {
     queue(queue.length-1) = queue(0)
     queue(queue.length-1)
   }
+  /** Returns the last frame in the queue aka the current frame */
+  def currentFrame:Seq[Boid] = {
+    queue(queue.length-1)
+  }
 
   /** Generate the next frame in the simulation */
   def update():Seq[Boid] = {
-    val windVec = wind.getOrElse(Vec2(0,0))
+    val windVec:Vec2 = wind.getOrElse(Vec2(0,0))
     // Function to update a single boid with wind
     val boidUpdate:Boid => Boid = boid=>boid.update(windVec)
 
-    // Does a conventional update of all boids, then adds an additional one and startles them all if triggered
-    val lastFrame = queue(queue.length-1)
-    val frameUpdate = lastFrame.map(boid => boidUpdate(boid))
-    val addBoid = if (insertBoid.isEmpty) {frameUpdate} else {frameUpdate :+ insertBoid.get}
-    val startledBoids = addBoid.map(boid => if (oneTimeFunction.nonEmpty) {oneTimeFunction.get(boid)} else boid)
+    // Do a conventional update of all boids, then add an additional one and startle them all if triggered
+    val frameUpdate:Seq[Boid] = currentFrame.map(boid => boidUpdate(boid))
+    val addBoid:Seq[Boid] = if (insertBoid.isEmpty) {frameUpdate} else {frameUpdate :+ insertBoid.get}
+    val startledBoids:Seq[Boid] = addBoid.map(boid => if (oneTimeFunction.nonEmpty) {oneTimeFunction.get(boid)} else boid)
 
     resetOneTimeEvents()
 
     pushState(startledBoids)
   }
-
 }
