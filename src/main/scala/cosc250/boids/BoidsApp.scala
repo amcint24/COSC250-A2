@@ -91,7 +91,7 @@ object BoidsApp {
     })
 
     startle.addActionListener({ (evt) =>
-      Simulation.oneTimeFunction = Some(Simulation.startleFunction)
+      Simulation.startleFunction
     })
 
     regenesis.addActionListener({ (evt) =>

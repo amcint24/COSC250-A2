@@ -10,7 +10,7 @@ case class Boid(
                  position:Vec2, velocity:Vec2
                ) {
   /** Converts a vector which represents the desired direction and converts it an optimal steering vector
-    * normalised times maxSpeed ensures the steer is not very small
+    * normalised times maxSpeed ensures the steer is not negative after subtracting velocity
     * subtract velocity to convert this into a change that will be applied to velocity, not new absolute value
     * limit to max steering force for smooth movement
     * credit to processing.org flock example for concept
@@ -36,7 +36,7 @@ case class Boid(
       // For each other boid calculate the vector pointing away from that boid. Divide this vector by the distance
       // to that boid to give more weight to close boids. Sum all the results together into a vector.
       val pointingAway:Vec2 = others.foldLeft(Vec2(0.0, 0.0)) { (awaySum, otherBoid) =>
-        awaySum + (position - otherBoid.position).normalised / distanceTo(otherBoid)
+        awaySum + (position - otherBoid.position).normalised / (distanceTo(otherBoid))
       }
       // Take the average of the vectors pointing away and create a steering vector in that direction.
       val weightedAverage:Vec2 = pointingAway / others.length
@@ -86,17 +86,22 @@ case class Boid(
   }
 
   /**
-    * First makes a list of all 'other boids' (not this) then filters Seqs for desired separation
-    * (DS) and neighbour distance (ND) Then calls the flocking behaviour functions on the appropriate Seqs, and sums
+    * Makes new Seqs of boids for flocking calculation - Other boids (not this) with desired separation (DS)
+    * and neighbour distance (ND) Then calls the flocking behaviour functions on the appropriate Seqs, and sums
     * the return into a vector. The separate function has additional weighting to achieve the desired
     * effect - credit to processing.org
     */
   def flock():Vec2 = {
-    val otherBoids:Seq[Boid] = Simulation.currentFrame.filter(boid => position.distance(boid.position) > 0)
-    val withinDS:Seq[Boid] = otherBoids.filter(otherBoid => distanceTo(otherBoid) < Boid.desiredSeparation)
-    val withinND:Seq[Boid] = otherBoids.filter(otherBoid => distanceTo(otherBoid) < Boid.neighBourDist)
+    val allBoids = Simulation.currentFrame
+    // Function to check if a boid is within a certain range and not the same boid (based on position)
+    val withinRange:(Boid, Double) => Boolean = { (boid, range) =>
+      distanceTo(boid) < range && boid != this
+    }
 
-    (separate(withinDS)*1.5) + align(withinND) + cohesion(withinND)
+    val withinDS:Seq[Boid] = allBoids.filter(otherBoid => withinRange(otherBoid, Boid.desiredSeparation))
+    val withinND:Seq[Boid] = allBoids.filter(otherBoid => withinRange(otherBoid, Boid.neighBourDist))
+
+    (separate(withinDS) * 1.5) + align(withinND) + cohesion(withinND)
   }
 
   /**
@@ -119,6 +124,11 @@ case class Boid(
   def wrapY(y:Double):Double = {
     if (y > Boid.maxY) y - Boid.maxY else if (y < 0) y + Boid.maxY else y
   }
+
+  /** Inequality method based on position - position is the only equality that impacts the arithmetic of flocking */
+  def !=(other:Boid):Boolean = {
+    this.position != other.position
+  }
 }
 
 object Boid {
@@ -126,7 +136,7 @@ object Boid {
   val desiredSeparation = 25
 
   /** Maximum flying velocity of a boid */
-  val maxSpeed = 2
+  val maxSpeed = 1.5
 
   /** maximum accelaration of a boid */
   val maxForce = 0.03
@@ -139,6 +149,7 @@ object Boid {
 
   /** Wrap height of the simulation. ie, for any Boid, 0 <= y < 480 */
   def maxY:Int = Simulation.height
+
 }
 
 

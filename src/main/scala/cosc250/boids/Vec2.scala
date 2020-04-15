@@ -22,6 +22,8 @@ import scala.util.Random
   */
 case class Vec2(x:Double, y:Double) {
 
+
+
   /** Vector addition -- adds this Vec2 to another */
   def +(v:Vec2) = Vec2(x + v.x, y + v.y)
 
@@ -97,25 +99,23 @@ object Vec2 {
     * @param theta
     * @return
     */
-  def fromRTheta(r:Double, theta:Double):Vec2 = {
+  def fromRTheta(r: Double, theta: Double): Vec2 = {
     Vec2(r * Math.cos(theta), r * Math.sin(theta))
   }
 
   /** A vector of magnitude d in a random direction */
-  def randomDir(d:Double):Vec2 = {
+  def randomDir(d: Double): Vec2 = {
     val theta = Random.nextDouble() * Math.PI * 2
     Vec2.fromRTheta(d, theta)
   }
 
-  val E:Double = 0
-  val SE:Double = Math.PI / 4
-  val S:Double = Math.PI / 2
-  val SW:Double = 3 * Math.PI / 4
-  val W:Double = Math.PI
-  val NW:Double = 5 * Math.PI / 4
-  val N:Double = 3 * Math.PI / 2
-  val NE:Double = 7 * Math.PI / 4
-
+  val E: Double = 0
+  val SE: Double = Math.PI / 4
+  val S: Double = Math.PI / 2
+  val SW: Double = 3 * Math.PI / 4
+  val W: Double = Math.PI
+  val NW: Double = 5 * Math.PI / 4
+  val N: Double = 3 * Math.PI / 2
+  val NE: Double = 7 * Math.PI / 4
 
 }
-
